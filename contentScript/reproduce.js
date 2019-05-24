@@ -88,7 +88,8 @@ function dispatchKeyboardEvent(event) {
     'shiftKey': false,
     target: tag,
     bubbles: true,
-    cancelable: true
+    cancelable: true,
+    code: event.code,
   }));
 }
 

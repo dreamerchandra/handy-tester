@@ -41,7 +41,8 @@ function keyListener(event) {
       query: 'record',
       queryType: 'keyboard',
       keyCode: event.keyCode,
-      key: event.key
+      key: event.key,
+      code: event.code,
     };
     chrome.runtime.sendMessage(dataToSave, responseListener);
   }

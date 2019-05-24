@@ -25,6 +25,7 @@ async function recordKeyboardEvent(request) {
       tagName: request.tagName,
       key: request.key,
       keyCode: request.keyCode,
+      code: request.code,
     };
     return await saveEventToLocalStorage(scenarioName, dataToSave);
   } catch (error) {
