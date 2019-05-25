@@ -13,6 +13,14 @@
   },
   "web_accessible_resources": [
     "script/*"
-  ]
+  ],
+  "content_security_policy": "script-src 'self'; https://www.gstatic.com/ https://*.firebaseio.com https://www.googleapis.com; object-src 'self'",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAhlOowAobcQc45tL9O0pv
+  BcavWFyXeYTfNH4VSK5SV2BsLGiglfdjpYMrtOX3voAINUaXuqUAvJE5yYSKKNaG
+  Vujt+Kd0ddm4afYlOVj4QOUyxZGN+Gqig0cKxq5fVYvSGC4/7i15gMlT6aI78+p9
+  YluFd7SOJrX0FCIH/GVPz6Y0ZdUY3zSWSUjvzDMv9gxdDmxa80Y1KaUmAQAGrlS/
+  VLfRpZG3jAkEoO9Q6JyYcGfzpQg03U4u+W1onf2pf9aCCCrbfVSZ9fRGIR4HhyPk
+  fQv45T0Jq1VQZH9T+PQQvU+kWQGlbuXr+UGvfBmFKU3ho//MGpZb7yNtv7ZUnAFI
+  QwIDAQAB";
 }
 
