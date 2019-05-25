@@ -126,20 +126,24 @@ function dispatchManualStep(event) {
 }
 
 function dispatchEventToDom(event) {
-  console.log('dispatching event', event);
-  switch (event.eventType) {
-    case 'mouse':
-      dispatchMouseEvent(event);
-      break;
-    case 'keyboard':
-      dispatchKeyboardEvent(event);
-      break;
-    case 'code':
-      executeScript(event);
-      break;
-    case 'manualStep':
-      dispatchManualStep(event);
-      break;
+  try {
+    console.log('dispatching event', event);
+    switch (event.eventType) {
+      case 'mouse':
+        dispatchMouseEvent(event);
+        break;
+      case 'keyboard':
+        dispatchKeyboardEvent(event);
+        break;
+      case 'code':
+        executeScript(event);
+        break;
+      case 'manualStep':
+        dispatchManualStep(event);
+        break;
+    }
+  } catch (error) {
+    console.error('dispatching event failed with error', error);
   }
 }
 
