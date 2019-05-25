@@ -46,7 +46,8 @@ async function stopRecording(scenario) {
 async function record() {
   try {
     const { scenario, scenarioName } = getScenarioNameGivenByUser();
-    if (scenarioName) {
+    const currentlyRecording = await Messenger.sendRunTimeMessage({ query: 'currentAction', queryType: 'currentlyRecording' });
+    if (scenarioName && !currentlyRecording) {
       await startRecording(scenario, scenarioName);
     } else {
       await stopRecording(scenario);

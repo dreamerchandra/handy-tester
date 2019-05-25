@@ -3,6 +3,7 @@ import { saveEventToLocalStorage } from './Helpers/StorageHelpers.js';
 import ChromeUtils from './Utils/ChromeUtils.js';
 import StorageUtils from './Utils/StorageUtils.js';
 
+//TODO: move the event payload in request to request.payload
 function getScenarioNameFromRequest(request) {
   const scenarioName = request.scenarioName;
   if (!scenarioName && typeof(scenarioName) === "string") {
