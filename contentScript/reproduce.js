@@ -80,17 +80,21 @@ function dispatchKeyboardEvent(event) {
   }
   const tag = getTag(event);
   if (tag && event.keyCode != 13) {
+    //TODO: value of tag should only change for input, text area, editable tags
     tag.value += event.key;
     console.log('dispatch successful for', tag);
   } 
-  tag.dispatchEvent(new KeyboardEvent('keyup', {
+  const keyConfig = {
     'keyCode': event.keyCode,
     'shiftKey': false,
     target: tag,
     bubbles: true,
     cancelable: true,
     code: event.code,
-  }));
+  };
+  tag.dispatchEvent(new KeyboardEvent('keydown', keyConfig));
+  tag.dispatchEvent(new KeyboardEvent('keypress', keyConfig));
+  tag.dispatchEvent(new KeyboardEvent('keyup', keyConfig));
 }
 
 function dispatchMouseEvent(event) {
@@ -109,15 +113,32 @@ function dispatchMouseEvent(event) {
   }
 }
 
-function executeScript(event) {
+function executeScriptInWindow(event) {
   if (!event) {
     throw new Error('event is required');
   }
   try {
-    console.log('starting to execute script', event);
-    eval(event.snippet);
+    console.log('posting message to execute script', event);
+    window.postMessage({ type: 'code', snippet: event.snippet });
   } catch (error) {
-    console.error('dispatching script failed', event);
+    console.error('positing msg failed with', error);
+  }
+}
+
+function executeTestCaseInWindow(event) {
+  if (!event) {
+    throw new Error('event is required');
+  }
+  try {
+    console.log('posting message to evaluate test case', event);
+    window.postMessage({
+      type: 'testCase',
+      snippet: event.snippet,
+      name: event.name,
+      description: event.description
+    });
+  } catch (error) {
+    console.error('positing msg failed with', error);
   }
 }
 
@@ -136,10 +157,13 @@ function dispatchEventToDom(event) {
         dispatchKeyboardEvent(event);
         break;
       case 'code':
-        executeScript(event);
+        executeScriptInWindow(event);
         break;
       case 'manualStep':
         dispatchManualStep(event);
+        break;
+      case 'testCase':
+        executeTestCaseInWindow(event);
         break;
     }
   } catch (error) {
@@ -162,7 +186,7 @@ async function reproduceEvents() {
         currentTimeStamp = event.timeStamp;
         const waitTime = currentTimeStamp - previousTimeStamp;
         previousTimeStamp = currentTimeStamp;
-        await wait(waitTime);
+        (event.eventType === 'testCase') ? await wait(1000) : await wait(waitTime);
         dispatchEventToDom(event);
       }
       reproduceEvents.completedIndex = index;
@@ -171,6 +195,46 @@ async function reproduceEvents() {
     console.error('play failed', error);
   }
 }
+
+function executeScript(event) {
+  try {
+    console.log('starting to execute script', event);
+    eval(event.data.snippet);
+  } catch (error) {
+    console.error('dispatching script failed', event);
+  }
+}
+
+function evaluateTestCase(event) {
+  try {
+    console.log('starting to evaluate test case', event);
+    const { name, description, snippet } = event.data;
+    const result = eval(snippet);
+    console.log(`%c${name} `, `color: ${result ? 'green' : 'red'}; font-size: large`);
+    if (!result) {
+      console.log(`%${description}`, 'font-style: italic; ');
+    }
+  } catch (error) {
+    console.error('testing test case failed with reproducing ', error);
+  }
+}
+
+function messageListener(event) {
+  switch (event.data.type) {
+    case 'code':
+      executeScript(event);
+      break;
+    case 'testCase':
+      evaluateTestCase(event);
+      break;
+  }
+}
 reproduceEvents();
+var codeScript = document.createElement("script");
+codeScript.innerHTML = `
+window.evaluateTestCase = ${evaluateTestCase};
+window.executeScript = ${executeScript};
+window.addEventListener('message', ${messageListener});`;
+document.head.appendChild(codeScript);
 window.addEventListener('unload', () => { chrome.runtime.sendMessage({ query: 'unload', queryType: 'reproduce', resumeEventAt: reproduceEvents.completedIndex || 0 }) });
 { finished: true }

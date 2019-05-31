@@ -58,33 +58,37 @@ function attachListeners() {
 }
 
 function recordCode(event) {
-  if (event && event.data && event.data.type === 'code') {
-    const snippet = event.data.snippet,
-      forceSave = event.data.forceSave;
-    if (window.startRecording && typeof (snippet) === 'string') {
-      if (!forceSave) {
-        try {
-          //TODO: dispatching key down or mouse down events should be treated properly
-          eval(snippet);
-        } catch (error) {
-          console.log("It seems your snippet contains error ", error);
-          console.log("aborting save");
-          console.log(`recordCode('${snippet}',true) to force save this step`);
-          return;
-        }
-      }
-      const scenarioName = getScenarioName();
-      let dataToSave = {
-        scenarioName,
-        snippet,
-        query: 'record',
-        queryType: 'code',
-      };
-      chrome.runtime.sendMessage(dataToSave, responseListener);
-    }
+  const snippet = event.data.snippet;
+  if (window.startRecording && typeof (snippet) === 'string') {
+    const scenarioName = getScenarioName();
+    let dataToSave = {
+      scenarioName,
+      snippet,
+      query: 'record',
+      queryType: 'code',
+    };
+    chrome.runtime.sendMessage(dataToSave, responseListener);
   }
 }
 
+function recordTestCase(event) {
+  const { snippet, name, description, result } = event.data;
+  if (window.startRecording) {
+    const scenarioName = getScenarioName();
+    console.log(`%c${name}`, `color: ${result ? 'green' : 'red'}; font-size: large`);
+    let dataToSave = {
+      scenarioName,
+      snippet,
+      description,
+      query: 'record',
+      queryType: 'testCase',
+      name: name
+    };
+    chrome.runtime.sendMessage(dataToSave, responseListener);
+  }
+}
+
+//TODO: the logic for recordManualStep is not yet finished
 function recordManualStep(event) {
   if (event && event.data && event.data.type === 'manualStep') {
     const description = event.data.description;
@@ -100,20 +104,78 @@ function recordManualStep(event) {
     }
   }
 }
+
 function postCodeToExtension(snippet, forceSave = false) {
-  window.postMessage({ type: 'code', snippet, forceSave });
+  if (typeof (snippet) === 'string') {
+    if (!forceSave) {
+      try {
+        //TODO: dispatching key down or mouse down events should be treated properly
+        eval(snippet);
+      } catch (error) {
+        console.log("It seems your snippet contains error ", error);
+        console.log("aborting save");
+        console.log(`recordCode('${snippet}',true) to force save this step`);
+        return;
+      }
+    }
+    window.postMessage({
+      type: 'code',
+      snippet,
+      forceSave
+    });
+  }
+}
+
+function postTestCaseToExtension(name, description, snippet) {
+  if (typeof (snippet) === 'string') {
+    try {
+      //TODO: dispatching key down or mouse down events should be treated properly
+      const result = eval(snippet);
+      window.postMessage({
+        type: 'testCase',
+        snippet,
+        name,
+        description,
+        result
+      });
+    } catch (error) {
+      console.log("It seems your snippet contains error ", error);
+      console.log("aborting save");
+    }
+  }
 }
 function postManualToExtension(description) {
   window.postMessage({ type: 'code', description});
 }
+
 var codeScript = document.createElement("script");
-var manualScript = document.createElement("script");
 codeScript.innerHTML = `window.recordCode = ${postCodeToExtension}`;
-manualScript.innerHTML += `window.recordManualStep = ${postManualToExtension}`;
 document.head.appendChild(codeScript);
+
+var manualScript = document.createElement("script");
+manualScript.innerHTML += `window.recordManualStep = ${postManualToExtension}`;
 document.head.appendChild(manualScript);
+
+var testScript = document.createElement("script");
+testScript.innerHTML += `window.recordTestCase = ${postTestCaseToExtension}`;
+document.head.appendChild(testScript);
+
 window.recordCode = recordCode;
 window.recordManualStep = recordManualStep;
+
 attachListeners();
-window.addEventListener('message', recordCode);
+
+function messageListener(event) {
+  switch (event.data.type) {
+    case 'code':
+      recordCode(event);
+      break;
+    case 'testCase':
+      recordTestCase(event);
+      break;
+  }
+}
+
+window.addEventListener('message', messageListener);
+
 { finished: true }

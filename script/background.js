@@ -51,6 +51,24 @@ async function recordCodeEvent(request) {
   }
 }
 
+async function recordTestCaseEvent(request) {
+  if (!request.snippet) {
+    throw new Error('code snippet is required');
+  }
+  try {
+    console.log('recording test case event', request);
+    const scenarioName = getScenarioNameFromRequest(request);
+    const dataToSave = {
+      eventType: 'testCase',
+      snippet: request.snippet,
+      name: request.name,
+      description: request.description,
+    };
+    return await saveEventToLocalStorage(scenarioName, dataToSave);
+  } catch (error) {
+    console.error('recording test case event thrown an error', error);
+  }
+}
 async function recordMouseEvent(request) {
   if (!request.tagName) {
     throw new Error('tagName name must be defined');
@@ -97,8 +115,10 @@ async function recordEvents(request) {
         return await recordMouseEvent(request);
       case 'code':
         return await recordCodeEvent(request);
-      case 'manualStep':
+      case 'manualStep': //TODO: din complete yet
         return await recordManualEvent(request);
+      case 'testCase':
+        return await recordTestCaseEvent(request);
     }
   } catch (error) {
     console.error('record events failed', error);
