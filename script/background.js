@@ -11,114 +11,15 @@ function getScenarioNameFromRequest(request) {
   }
   return scenarioName;
 }
-async function recordKeyboardEvent(request) {
-  if (!(request.tagName && request.key && request.keyCode)) {
-    throw new Error('tagName, key and keyCode name must be defined');
-  }
-  try {
-    //TODO: ctrl, shift, alt, options should also be associated with keycode
-    console.log('recording keyboard event', request);
-    const scenarioName = getScenarioNameFromRequest(request);
-    const dataToSave = {
-      eventType: 'keyboard',
-      id: request.id || '',
-      className: request.className || '',
-      tagName: request.tagName,
-      key: request.key,
-      keyCode: request.keyCode,
-      code: request.code,
-    };
-    return await saveEventToLocalStorage(scenarioName, dataToSave);
-  } catch (error) {
-    console.error('record keyboard event failed', error);
-  }
-}
-
-async function recordCodeEvent(request) {
-  if (!request.snippet) {
-    throw new Error('code snippet is required');
-  }
-  try {
-    console.log('recording code event', request);
-    const scenarioName = getScenarioNameFromRequest(request);
-    const dataToSave = {
-      eventType: 'code',
-      snippet: request.snippet,
-    };
-    return await saveEventToLocalStorage(scenarioName, dataToSave);
-  } catch (error) {
-    console.error('recording code failed', error);
-  }
-}
-
-async function recordTestCaseEvent(request) {
-  if (!request.snippet) {
-    throw new Error('code snippet is required');
-  }
-  try {
-    console.log('recording test case event', request);
-    const scenarioName = getScenarioNameFromRequest(request);
-    const dataToSave = {
-      eventType: 'testCase',
-      snippet: request.snippet,
-      name: request.name,
-      description: request.description,
-    };
-    return await saveEventToLocalStorage(scenarioName, dataToSave);
-  } catch (error) {
-    console.error('recording test case event thrown an error', error);
-  }
-}
-async function recordMouseEvent(request) {
-  if (!request.tagName) {
-    throw new Error('tagName name must be defined');
-  }
-  try {
-    console.log('recording mouse event', request);
-    const scenarioName = getScenarioNameFromRequest(request);
-    //TODO: mouse position with relative to window size has to be stored
-    const dataToSave = {
-      eventType: 'mouse',
-      id: request.id || '',
-      className: request.className || '',
-      tagName: request.tagName,
-    };
-    return await saveEventToLocalStorage(scenarioName, dataToSave);
-  } catch (error) {
-    console.error('record mouse event failed', error);
-  }
-}
-
-async function recordManualEvent(request) {
-  if (!request.description) {
-    throw new Error('description is required');
-  }
-  try {
-    console.log('recording manual step', request);
-    const scenarioName = getScenarioNameFromRequest(request);
-    const dataToSave = {
-      eventType: 'manualStep',
-      description: request.description,
-    };
-    return await saveEventToLocalStorage(scenarioName, dataToSave);
-  } catch (error) {
-    console.error('recording manual step failed', error);
-  }
-}
 
 async function recordEvents(request) {
   try {
-    switch (request.queryType) {
-      case 'keyboard':
-        return await recordKeyboardEvent(request);
-      case 'mouse':
-        return await recordMouseEvent(request);
-      case 'code':
-        return await recordCodeEvent(request);
-      case 'manualStep': //TODO: din complete yet
-        return await recordManualEvent(request);
-      case 'testCase':
-        return await recordTestCaseEvent(request);
+    const events = ['keyboard', 'mouse', 'code', 'manualStep', 'testCase', 'mutationChildList', 'mutationAttributes', 'scroll'];
+    if (events.indexOf(request.queryType) != -1 && typeof(request.dataToSave) === "object") {
+      const scenarioName = getScenarioNameFromRequest(request);
+      let dataToSave = request.dataToSave;
+      dataToSave.eventType = request.queryType;
+      return await saveEventToLocalStorage(scenarioName, dataToSave);
     }
   } catch (error) {
     console.error('record events failed', error);

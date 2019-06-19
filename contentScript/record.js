@@ -10,50 +10,86 @@ function getScenarioName() {
   return scenarioName;
 }
 
-function getBasicDataToSave(event) {
-  const scenarioName = getScenarioName();
-  const data = {
-    id: event.path[0].id,
-    className: event.path[0].className,
-    tagName: event.path[0].tagName,
-    scenarioName
-  }
-  return data;
-}
-
 function mouseListener(event) {
   if (window.startRecording) {
-    let dataToSave = getBasicDataToSave(event);
-    dataToSave = {
-      ...dataToSave,
+    const scenarioName = getScenarioName();
+    const data = {
+      dataToSave: {
+        id: event.path[0].id,
+        className: event.path[0].className,
+        tagName: event.path[0].tagName,
+      },
+      scenarioName,
       query: 'record',
       queryType: 'mouse',
     }
-    chrome.runtime.sendMessage(dataToSave, responseListener);
+    chrome.runtime.sendMessage(data, responseListener);
   }
 }
 
 function keyListener(event) {
   if (window.startRecording) {
-    let dataToSave = getBasicDataToSave(event);
-    dataToSave = {
-      ...dataToSave,
+    const scenarioName = getScenarioName();
+    const data = {
+      dataToSave: {
+        id: event.path[0].id,
+        className: event.path[0].className,
+        tagName: event.path[0].tagName,
+        keyCode: event.keyCode,
+        key: event.key,
+        code: event.code,
+      },
+      scenarioName,
       query: 'record',
       queryType: 'keyboard',
-      keyCode: event.keyCode,
-      key: event.key,
-      code: event.code,
     };
-    chrome.runtime.sendMessage(dataToSave, responseListener);
+    chrome.runtime.sendMessage(data, responseListener);
   }
 }
+
+function scrollListener(event) {
+  if (window.startRecording) {
+    const scenarioName = getScenarioName();
+    const data = {
+      dataToSave: {
+        id: event.path[0].id,
+        className: event.path[0].className,
+        tagName: event.path[0].tagName,
+        scrollTop: event.path[0].scrollTop
+      },
+      scenarioName,
+      query: 'record',
+      queryType: 'scroll',
+    };
+    chrome.runtime.sendMessage(data, responseListener);
+  }
+}
+
+function debounce(func, wait, immediate) {
+	var timeout;
+	return function() {
+		var context = this, args = arguments;
+		var later = function() {
+			timeout = null;
+			if (!immediate) func.apply(context, args);
+		};
+		var callNow = immediate && !timeout;
+		clearTimeout(timeout);
+		timeout = setTimeout(later, wait);
+		if (callNow) func.apply(context, args);
+	};
+};
+
 function attachListeners() {
   if (window.startRecording) {
     document.addEventListener('mousedown', mouseListener);
     document.addEventListener('keydown', keyListener);
+    window.addEventListener('scroll', debounce(scrollListener, 100, false), true)
+    connectMutationObserver();
   } else {
     document.removeEventListener('mousedown', mouseListener);
     document.removeEventListener('keydown', keyListener);
+    disconnectMutationObserver();
   }
 }
 
@@ -61,13 +97,15 @@ function recordCode(event) {
   const snippet = event.data.snippet;
   if (window.startRecording && typeof (snippet) === 'string') {
     const scenarioName = getScenarioName();
-    let dataToSave = {
+    const data = {
+      dataToSave: {
+        snippet,
+      },
       scenarioName,
-      snippet,
       query: 'record',
       queryType: 'code',
     };
-    chrome.runtime.sendMessage(dataToSave, responseListener);
+    chrome.runtime.sendMessage(data, responseListener);
   }
 }
 
@@ -76,15 +114,17 @@ function recordTestCase(event) {
   if (window.startRecording) {
     const scenarioName = getScenarioName();
     console.log(`%c${name}`, `color: ${result ? 'green' : 'red'}; font-size: large`);
-    let dataToSave = {
+    const data = {
+      dataToSave: {
+        snippet,
+        description,
+      },
       scenarioName,
-      snippet,
-      description,
       query: 'record',
       queryType: 'testCase',
       name: name
     };
-    chrome.runtime.sendMessage(dataToSave, responseListener);
+    chrome.runtime.sendMessage(data, responseListener);
   }
 }
 
@@ -94,13 +134,15 @@ function recordManualStep(event) {
     const description = event.data.description;
     if (window.startRecording && typeof (snippet) === 'string') {
       const scenarioName = getScenarioName();
-      let dataToSave = {
+      const data = {
+        dataToSave: {
+          description,
+        },
         scenarioName,
-        description,
         query: 'record',
         queryType: 'manualStep',
       };
-      chrome.runtime.sendMessage(dataToSave, responseListener);
+      chrome.runtime.sendMessage(data, responseListener);
     }
   }
 }
@@ -148,22 +190,97 @@ function postManualToExtension(description) {
   window.postMessage({ type: 'code', description});
 }
 
+//TODO: old school method for connecting and disconnet mutation observer
+function disconnectMutationObserver() {
+  const observer = mutationObserver();
+  observer.disconnect();
+  console.log('observer disconnected');
+}
+
+function connectMutationObserver() {
+  const config = {
+    attributes: true,
+    childList: true,
+    subtree: true,
+    attributeOldValue: true,
+  };
+  const observer = mutationObserver();
+  //TODO: abstract this logic
+  if (document.readyState === 'complete') {
+    observer.observe(document, config);
+    console.log('mutation observer attached at readyState completed');
+  } else {
+    window.addEventListener('load', () => {
+      observer.observe(document, config);
+      console.log('mutation observer attached');
+    });
+  }
+}
+
+//TODO: refactor
+function mutationObserver() {
+  if (!mutationObserver.observer) {
+    /**
+     * 
+     * @param {MutationRecord[]} mutationList 
+     */
+    const mutationCallBack = (mutationList) => {
+      if (!window.scenarioName) return;
+      //TODO: find a better logic for mutation recording
+      console.log("recording mutation events:", mutationList);
+      mutationList.forEach((records) => {
+        const scenarioName = getScenarioName();
+        if (records.type === 'childList') {
+          //TODO: change the logic to support the added nodes or listen for network status 
+          const data = {
+            dataToSave: {
+              childAddedOrRemoved: records.removedNodes.length + records.addedNodes.length,
+            },
+            scenarioName,
+            query: 'record',
+            queryType: 'mutationChildList',
+          };
+          chrome.runtime.sendMessage(data, responseListener);
+        } else if (records.type === 'attributes') {
+          const changeInfo = {
+            oldValue: records.oldValue,
+            attributeName: records.attributeName,
+          };
+          if (records.target.getAttribute) {
+            changeInfo.newValue = records.target
+              .getAttribute(records.attributeName);
+          }
+          const data = {
+            dataToSave: {
+              changeInfo,
+            },
+            scenarioName,
+            query: 'record',
+            queryType: 'mutationAttributes',
+          };
+          chrome.runtime.sendMessage(data, responseListener);
+        }
+        console.log(`mutationObserver recording request sent`);
+      });
+    };
+    const observer = new MutationObserver(mutationCallBack);
+    mutationObserver.observer = observer;
+  }
+  return mutationObserver.observer;
+}
+
 var codeScript = document.createElement("script");
-codeScript.innerHTML = `window.recordCode = ${postCodeToExtension}`;
+//to access from the actual dom
+codeScript.innerHTML = `
+window.recordCode = ${postCodeToExtension};
+window.recordTestCase = ${postTestCaseToExtension};
+window.recordManualStep = ${postManualToExtension};`;
+codeScript.id = 'handyTester';
 document.head.appendChild(codeScript);
-
-var manualScript = document.createElement("script");
-manualScript.innerHTML += `window.recordManualStep = ${postManualToExtension}`;
-document.head.appendChild(manualScript);
-
-var testScript = document.createElement("script");
-testScript.innerHTML += `window.recordTestCase = ${postTestCaseToExtension}`;
-document.head.appendChild(testScript);
 
 window.recordCode = recordCode;
 window.recordManualStep = recordManualStep;
 
-attachListeners();
 
 function messageListener(event) {
   switch (event.data.type) {
@@ -176,6 +293,7 @@ function messageListener(event) {
   }
 }
 
+attachListeners();
 window.addEventListener('message', messageListener);
 
 { finished: true }
