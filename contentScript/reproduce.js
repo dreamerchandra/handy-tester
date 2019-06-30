@@ -67,9 +67,7 @@ class Helper {
         }
         Helper._completedIndex++;
         console.log('STEP 8: mutation changes observed with Helper.changesAfterDispatch:', JSON.stringify(Helper.changesAfterDispatch));
-        //TODO: finish canDispatchable
         if (Helper.canDispatchable()) {
-          //TODO: finish dispatchNextEvent
           await Helper.dispatchNextEvent();
         }
       }
@@ -103,6 +101,10 @@ class Helper {
         Helper.changesAfterDispatch.mutationChanges.attributeName === Helper.tillNextEvent.mutationChanges.attributeName &&
         Helper.changesAfterDispatch.mutationChanges.newValue === Helper.tillNextEvent.mutationChanges.newValue)) {
       console.log('STEP 10: can dispatch triggered true\n<<<<<<< FINISHED ONE CYCLE next cycle starts from STEP 2');
+      Helper.tillNextEvent = {
+        childAddedOrRemoved: 0,
+        mutationChanges: undefined,
+      };
       return true;
     }
     return false;
@@ -123,13 +125,22 @@ class Helper {
     for (const [index, id] of Helper.eventIds.entries()) {
       const event = await getEventData(id);
       if (event.eventType === 'mutationChildList') {
-        Helper.tillNextEvent.childAddedOrRemoved += event.childAddedOrRemoved;
+        Helper.tillNextEvent.childAddedOrRemoved = event.childAddedOrRemoved;
         Helper.tillNextEvent.mutationChanges = undefined;
       } else if (event.eventType === 'mutationAttributes') {
         Helper.tillNextEvent.childAddedOrRemoved = 0;
         Helper.tillNextEvent.mutationChanges = event.changeInfo;
       } else {
         console.log('STEP 5: returning getDomChangesTillNextEvent lastDispatchDomChanges', JSON.stringify(Helper.tillNextEvent));
+        if (Helper.canDispatchable()) {
+          console.log('STEP 5a: middle dispatch events');
+          Helper.changesAfterDispatch = {
+            childAddedOrRemoved: 0,
+            mutationChanges: undefined,
+          };
+          Helper._completedIndex++;
+          await Helper.dispatchNextEvent();
+        }
         return;
       }
     }
@@ -146,6 +157,10 @@ class Helper {
         dispatchEventToDom(event);
         Helper.completedIndex = index + 1;
         Helper._completedIndex += index + 1;
+        Helper.tillNextEvent = {
+          childAddedOrRemoved: 0,
+          mutationChanges: undefined,
+        };
         console.log('STEP 3: getting dom changes till next event');
         await Helper.getDomChangesTillNextEvent();
       }
