@@ -55,7 +55,7 @@ class Helper {
           return;
         }
         if (records.type === 'childList') {
-          Helper.changesAfterDispatch.childAddedOrRemoved += records.removedNodes.length + records.addedNodes.length;
+          Helper.changesAfterDispatch.childAddedOrRemoved = records.removedNodes.length + records.addedNodes.length;
         } else if (records.type === 'attributes') {
           Helper.changesAfterDispatch.mutationChanges = {
             oldValue: records.oldValue,
@@ -247,6 +247,20 @@ function getTag(event) {
   console.log('tag can not be found in dom');
 }
 
+function dispatchScrollEvent(event) {
+  if (!event) {
+    throw new Error('event is required');
+  }
+  const tag = getTag(event);
+  if (tag) {
+    const scrollOptions = {
+      top: event.scrollTop,
+      behavior: 'smooth',
+    }
+    tag.scroll(scrollOptions);
+  }
+}
+
 function dispatchKeyboardEvent(event) {
   if (!event) {
     throw new Error('event is required');
@@ -338,6 +352,9 @@ function dispatchEventToDom(event) {
           break;
         case 'testCase':
           executeTestCaseInWindow(event);
+          break;
+        case 'scroll':
+          dispatchScrollEvent(event);
           break;
       }
       console.log('STEP 7: event dispatch successfully');
